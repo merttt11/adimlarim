@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Adımlarım</title>
+
+<!-- Logo Favicon -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><circle fill=%22%2327ae60%22 cx=%2232%22 cy=%2232%22 r=%2232%22/></svg>" />
+
+<style>
+  /* Genel stil */
+  body {
+    margin: 0; padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f8ff;
+    color: #222;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  
+  /* Gece modu için */
+  body.dark {
+    background-color: #121212;
+    color: #eee;
+  }
+  
+  header {
+    padding: 20px;
+    text-align: center;
+    background: #27ae60;
+    color: white;
+    font-weight: 700;
+    font-size: 28px;
+    user-select: none;
+  }
+  
+  /* Giriş animasyonu */
+  #intro {
+    position: fixed;
+    top: 0; left: 0; right:0; bottom:0;
+    background: #27ae60;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 48px;
+    font-weight: 700;
+    z-index: 9999;
+    animation: fadeOut 2s ease forwards;
+    animation-delay: 2s;
+  }
+  
+  @keyframes fadeOut {
+    to {opacity: 0; visibility: hidden;}
+  }
+  
+  main {
+    flex: 1;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  #steps {
+    font-size: 96px;
+    font-weight: 700;
+    margin: 20px 0;
+    user-select: none;
+  }
+  
+  button {
+    padding: 12px 24px;
+    font-size: 20px;
+    border: none;
+    border-radius: 8px;
+    margin: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.3s;
+  }
+  button:active {
+    transform: scale(0.98);
+  }
+  
+  #resetBtn {
+    background-color: #e74c3c;
+    color: white;
+  }
+  #resetBtn:hover {
+    background-color: #c0392b;
+  }
+  
+  #toggleThemeBtn {
+    background-color: #2980b9;
+    color: white;
+  }
+  #toggleThemeBtn:hover {
+    background-color: #21618c;
+  }
+  
+  #info {
+    margin-top: 24px;
+    font-size: 18px;
+  }
+</style>
+</head>
+<body>
+
+<div id="intro">Adımlarım</div>
+
+<header>Adımlarım</header>
+
+<main>
+  <div id="steps">0</div>
+  <button id="resetBtn">Adımları Sıfırla</button>
+  <button id="toggleThemeBtn">Gece Modu</button>
+  
+  <div id="info">
+    <p>Kalori: <span id="calories">0</span> kcal</p>
+    <p>Mesafe: <span id="distance">0</span> m</p>
+  </div>
+</main>
+
+<script>
+  /* ----------------------- Giriş Animasyonu --------------------- */
+  window.addEventListener('load', () => {
+    const intro = document.getElementById('intro');
+    setTimeout(() => {
+      intro.style.display = 'none';
+    }, 4000); // 2s animasyon + 2s bekleme
+  });
+
+  /* ----------------------- Gece Modu ---------------------------- */
+  const toggleThemeBtn = document.getElementById('toggleThemeBtn');
+  toggleThemeBtn.addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+    toggleThemeBtn.textContent = document.body.classList.contains('dark') ? 'Gündüz Modu' : 'Gece Modu';
+    localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  });
+
+  // Sayfa yüklenince kayıtlı temayı uygula
+  window.addEventListener('load', () => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark');
+      toggleThemeBtn.textContent = 'Gündüz Modu';
+    }
+  });
+
+  /* ----------------------- Adım Sayar --------------------------- */
+
+  // Adım sayısı, kalori ve mesafe verilerini localStorage'da tutacağız
+  let steps = Number(localStorage.getItem('steps')) || 0;
+  let calories = Number(localStorage.getItem('calories')) || 0;
+  let distance = Number(localStorage.getItem('distance')) || 0;
+
+  // Güncelle ekrana
+  function updateDisplay() {
+    document.getElementById('steps').textContent = steps;
+    document.getElementById('calories').textContent = calories.toFixed(2);
+    document.getElementById('distance').textContent = distance.toFixed(1);
+  }
+  updateDisplay();
+
+  // Parametreler
+  const stepLengthMeters = 0.75;  // Ortalama adım boyu metre cinsinden
+  const caloriesPerStep = 0.04;   // Ortalama kalori, kişiye göre değişir
+
+  let lastMagnitude = 0;
+  let stepThreshold = 1.2;
+  let lastStepTime = 0;
+  let stepDelay = 300; // ms
+
+  window.addEventListener('devicemotion', event => {
+    let a = event.accelerationIncludingGravity;
+    if (!a) return;
+
+    let magnitude = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+    if (magnitude - lastMagnitude > stepThreshold) {
+      let now = Date.now();
+      if (now - lastStepTime > stepDelay) {
+        steps++;
+        distance += stepLengthMeters;
+        calories += caloriesPerStep;
+        updateDisplay();
+        saveData();
+        lastStepTime = now;
+      }
+    }
+    lastMagnitude = magnitude;
+  });
+
+  // Veri kaydet
+  function saveData() {
+    localStorage.setItem('steps', steps);
+    localStorage.setItem('calories', calories);
+    localStorage.setItem('distance', distance);
+  }
+
+  // Sıfırlama
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    steps = 0; calories = 0; distance = 0;
+    updateDisplay();
+    saveData();
+  });
+
+</script>
+
+</body>
+</html>
